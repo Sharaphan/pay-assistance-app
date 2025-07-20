@@ -1,16 +1,16 @@
-name: Build Android APK
+name: Build PAY Assistance APK
 
 on:
+  workflow_dispatch:
   push:
     branches: [ main ]
-  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
+    
     steps:
-    - name: Checkout code
+    - name: Checkout repository
       uses: actions/checkout@v4
 
     - name: Setup Node.js
@@ -20,10 +20,12 @@ jobs:
         cache: 'npm'
 
     - name: Install dependencies
-      run: npm install
+      run: npm ci
 
-    - name: Build web app
-      run: npm run build
+    - name: Build web application
+      run: |
+        npm run build
+        ls -la dist/
 
     - name: Setup Java JDK
       uses: actions/setup-java@v4
@@ -34,17 +36,25 @@ jobs:
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
 
-    - name: Sync Capacitor
-      run: npx cap sync android
-
-    - name: Build APK
+    - name: Add Android platform
       run: |
-        cd android
-        chmod +x ./gradlew
-        ./gradlew assembleDebug
+        npx cap add android --confirm || echo "Android platform already exists"
 
-    - name: Upload APK
+    - name: Sync with Capacitor
+      run: |
+        npx cap copy android
+        npx cap sync android
+
+    - name: Grant execute permission for gradlew
+      run: chmod +x android/gradlew
+
+    - name: Build debug APK
+      working-directory: android
+      run: ./gradlew assembleDebug --no-daemon --stacktrace
+
+    - name: Upload APK artifact
       uses: actions/upload-artifact@v4
       with:
-        name: pay-assistance-apk
+        name: pay-assistance-debug-apk
         path: android/app/build/outputs/apk/debug/app-debug.apk
+        retention-days: 30
