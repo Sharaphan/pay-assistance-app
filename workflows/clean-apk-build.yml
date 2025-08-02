@@ -1,0 +1,304 @@
+name: Clean APK Build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
+    - name: Create project structure
+      run: |
+        mkdir -p pay-assistance-app
+        cd pay-assistance-app
+        
+        # Initialize package.json
+        cat > package.json << 'EOF'
+        {
+          "name": "pay-assistance",
+          "version": "1.0.0",
+          "dependencies": {
+            "@capacitor/android": "^6.0.0",
+            "@capacitor/cli": "^6.0.0",
+            "@capacitor/core": "^6.0.0"
+          }
+        }
+        EOF
+
+    - name: Create web app
+      run: |
+        cd pay-assistance-app
+        mkdir -p www
+        cat > www/index.html << 'EOF'
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>PAY Assistance</title>
+            <style>
+                * { margin: 0; padding: 0; box-sizing: border-box; }
+                body { 
+                    font-family: system-ui, -apple-system, sans-serif;
+                    background: linear-gradient(135deg, #1e40af, #3b82f6);
+                    color: white;
+                    min-height: 100vh;
+                    padding: 20px;
+                }
+                .container { 
+                    max-width: 400px; 
+                    margin: 0 auto; 
+                    background: rgba(255,255,255,0.1);
+                    padding: 30px;
+                    border-radius: 20px;
+                    backdrop-filter: blur(10px);
+                    margin-top: 50px;
+                }
+                h1 { 
+                    text-align: center; 
+                    font-size: 2.5em; 
+                    margin-bottom: 10px; 
+                    font-weight: 800;
+                }
+                .subtitle { 
+                    text-align: center; 
+                    opacity: 0.9; 
+                    margin-bottom: 30px; 
+                    font-size: 1.1em;
+                }
+                .form-group { margin-bottom: 20px; }
+                label { 
+                    display: block; 
+                    margin-bottom: 8px; 
+                    font-weight: 600;
+                    font-size: 14px;
+                    text-transform: uppercase;
+                }
+                input, select { 
+                    width: 100%; 
+                    padding: 15px; 
+                    border: none; 
+                    border-radius: 10px; 
+                    font-size: 16px;
+                    background: rgba(255,255,255,0.9);
+                    color: #1e40af;
+                }
+                .btn { 
+                    width: 100%;
+                    background: linear-gradient(135deg, #f97316, #ea580c);
+                    color: white; 
+                    padding: 18px; 
+                    border: none; 
+                    border-radius: 12px; 
+                    font-size: 16px; 
+                    font-weight: 700;
+                    cursor: pointer;
+                    text-transform: uppercase;
+                    margin-top: 20px;
+                }
+                .btn:hover { transform: translateY(-2px); }
+                .result { 
+                    background: rgba(34, 197, 94, 0.2); 
+                    padding: 25px; 
+                    border-radius: 15px; 
+                    margin-top: 25px;
+                    border: 2px solid rgba(34, 197, 94, 0.5);
+                }
+                .result h3 { 
+                    color: #10b981; 
+                    margin-bottom: 15px; 
+                    font-size: 1.3em; 
+                }
+                .result-line { 
+                    display: flex; 
+                    justify-content: space-between; 
+                    margin-bottom: 10px; 
+                    padding: 5px 0; 
+                }
+                .result-line.total { 
+                    border-top: 2px solid rgba(255,255,255,0.3); 
+                    margin-top: 15px; 
+                    padding-top: 15px; 
+                    font-weight: 700; 
+                    font-size: 1.2em; 
+                }
+                .hidden { display: none; }
+                .days-grid { 
+                    display: grid; 
+                    grid-template-columns: repeat(7, 1fr); 
+                    gap: 8px; 
+                    margin-bottom: 20px; 
+                }
+                .day-btn { 
+                    padding: 10px 5px; 
+                    background: rgba(255,255,255,0.2); 
+                    border: 2px solid transparent; 
+                    border-radius: 8px; 
+                    color: white; 
+                    font-size: 12px; 
+                    font-weight: 600; 
+                    cursor: pointer; 
+                }
+                .day-btn.active { 
+                    background: #f97316; 
+                    border-color: #ea580c; 
+                }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>PAY Assistance</h1>
+                <p class="subtitle">Australian Salary Calculator</p>
+                
+                <div class="form-group">
+                    <label>Hourly Rate (AUD)</label>
+                    <input type="number" id="hourlyRate" placeholder="25.00" step="0.01">
+                </div>
+
+                <div class="form-group">
+                    <label>Employment Type</label>
+                    <select id="employmentType">
+                        <option value="casual">Casual (+25% loading)</option>
+                        <option value="fulltime">Full-time</option>
+                        <option value="parttime">Part-time</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Work Days</label>
+                    <div class="days-grid">
+                        <button class="day-btn active" data-day="mon">MON</button>
+                        <button class="day-btn active" data-day="tue">TUE</button>
+                        <button class="day-btn active" data-day="wed">WED</button>
+                        <button class="day-btn active" data-day="thu">THU</button>
+                        <button class="day-btn active" data-day="fri">FRI</button>
+                        <button class="day-btn" data-day="sat">SAT</button>
+                        <button class="day-btn" data-day="sun">SUN</button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Hours per Day</label>
+                    <input type="number" id="hoursPerDay" placeholder="8.0" step="0.5">
+                </div>
+
+                <button class="btn" onclick="calculate()">Calculate Weekly Pay</button>
+
+                <div id="result" class="result hidden">
+                    <h3>Weekly Breakdown</h3>
+                    <div id="resultContent"></div>
+                </div>
+            </div>
+
+            <script>
+                document.querySelectorAll('.day-btn').forEach(btn => {
+                    btn.addEventListener('click', () => btn.classList.toggle('active'));
+                });
+
+                function calculate() {
+                    const hourlyRate = parseFloat(document.getElementById('hourlyRate').value);
+                    const employmentType = document.getElementById('employmentType').value;
+                    const hoursPerDay = parseFloat(document.getElementById('hoursPerDay').value);
+
+                    if (!hourlyRate || !hoursPerDay) {
+                        alert('Please enter hourly rate and hours per day');
+                        return;
+                    }
+
+                    const activeDays = document.querySelectorAll('.day-btn.active').length;
+                    let weeklyHours = hoursPerDay * activeDays;
+                    let grossPay = hourlyRate * weeklyHours;
+
+                    if (employmentType === 'casual') {
+                        grossPay *= 1.25;
+                    }
+
+                    // Australian tax calculation
+                    const annualGross = grossPay * 52;
+                    let annualTax = 0;
+                    
+                    if (annualGross <= 18200) {
+                        annualTax = 0;
+                    } else if (annualGross <= 45000) {
+                        annualTax = (annualGross - 18200) * 0.19;
+                    } else if (annualGross <= 120000) {
+                        annualTax = 5092 + (annualGross - 45000) * 0.325;
+                    } else if (annualGross <= 180000) {
+                        annualTax = 29467 + (annualGross - 120000) * 0.37;
+                    } else {
+                        annualTax = 51667 + (annualGross - 180000) * 0.45;
+                    }
+
+                    const weeklyTax = annualTax / 52;
+                    const medicare = grossPay * 0.02;
+                    const netPay = grossPay - weeklyTax - medicare;
+
+                    document.getElementById('resultContent').innerHTML = `
+                        <div class="result-line"><span>Work Days:</span><span>${activeDays} days</span></div>
+                        <div class="result-line"><span>Total Hours:</span><span>${weeklyHours} hours</span></div>
+                        <div class="result-line"><span>Gross Pay:</span><span>$${grossPay.toFixed(2)}</span></div>
+                        <div class="result-line"><span>Income Tax:</span><span>-$${weeklyTax.toFixed(2)}</span></div>
+                        <div class="result-line"><span>Medicare:</span><span>-$${medicare.toFixed(2)}</span></div>
+                        <div class="result-line total"><span>Take Home:</span><span>$${netPay.toFixed(2)}</span></div>
+                    `;
+                    
+                    document.getElementById('result').classList.remove('hidden');
+                }
+            </script>
+        </body>
+        </html>
+        EOF
+
+    - name: Setup Capacitor
+      run: |
+        cd pay-assistance-app
+        npm install
+        
+        # Create capacitor config
+        cat > capacitor.config.json << 'EOF'
+        {
+          "appId": "com.payassistance.app",
+          "appName": "PAY Assistance",
+          "webDir": "www",
+          "bundledWebRuntime": false
+        }
+        EOF
+        
+        npx cap init --config=capacitor.config.json
+
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+
+    - name: Add Android platform
+      run: |
+        cd pay-assistance-app
+        npx cap add android
+
+    - name: Copy web assets
+      run: |
+        cd pay-assistance-app
+        npx cap copy android
+
+    - name: Build APK
+      run: |
+        cd pay-assistance-app/android
+        chmod +x ./gradlew
+        ./gradlew assembleDebug --no-daemon
+
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: pay-assistance-clean-apk
+        path: pay-assistance-app/android/app/build/outputs/apk/debug/app-debug.apk
