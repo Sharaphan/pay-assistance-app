@@ -1,0 +1,463 @@
+name: Test APK Build
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
+    - name: Create simple app
+      run: |
+        mkdir -p simple-app/www
+        
+        cat > simple-app/package.json << 'EOF'
+        {
+          "name": "pay-assistance",
+          "version": "1.0.0",
+          "dependencies": {
+            "@capacitor/android": "^6.0.0",
+            "@capacitor/cli": "^6.0.0",
+            "@capacitor/core": "^6.0.0"
+          }
+        }
+        EOF
+        
+        cat > simple-app/www/index.html << 'EOF'
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>PAY Assistance</title>
+            <style>
+                * { margin: 0; padding: 0; box-sizing: border-box; }
+                body { 
+                    font-family: system-ui, -apple-system, sans-serif;
+                    background: linear-gradient(135deg, #1e40af, #3b82f6);
+                    color: white;
+                    min-height: 100vh;
+                    padding: 20px;
+                }
+                .container { 
+                    max-width: 400px; 
+                    margin: 0 auto; 
+                    background: rgba(255,255,255,0.1);
+                    padding: 30px;
+                    border-radius: 20px;
+                    backdrop-filter: blur(10px);
+                    margin-top: 30px;
+                }
+                h1 { 
+                    text-align: center; 
+                    font-size: 2.5em; 
+                    margin-bottom: 10px; 
+                    font-weight: 800;
+                }
+                .subtitle { 
+                    text-align: center; 
+                    opacity: 0.9; 
+                    margin-bottom: 30px; 
+                    font-size: 1.1em;
+                }
+                .form-group { margin-bottom: 20px; }
+                label { 
+                    display: block; 
+                    margin-bottom: 8px; 
+                    font-weight: 600;
+                    font-size: 14px;
+                    text-transform: uppercase;
+                }
+                input, select { 
+                    width: 100%; 
+                    padding: 15px; 
+                    border: none; 
+                    border-radius: 10px; 
+                    font-size: 16px;
+                    background: rgba(255,255,255,0.9);
+                    color: #1e40af;
+                }
+                .btn { 
+                    width: 100%;
+                    background: linear-gradient(135deg, #f97316, #ea580c);
+                    color: white; 
+                    padding: 18px; 
+                    border: none; 
+                    border-radius: 12px; 
+                    font-size: 16px; 
+                    font-weight: 700;
+                    cursor: pointer;
+                    text-transform: uppercase;
+                    margin-top: 20px;
+                }
+                .btn:hover { transform: translateY(-2px); }
+                .result { 
+                    background: rgba(34, 197, 94, 0.2); 
+                    padding: 25px; 
+                    border-radius: 15px; 
+                    margin-top: 25px;
+                    border: 2px solid rgba(34, 197, 94, 0.5);
+                    display: none;
+                }
+                .result h3 { 
+                    color: #10b981; 
+                    margin-bottom: 15px; 
+                    font-size: 1.3em; 
+                }
+                .result-line { 
+                    display: flex; 
+                    justify-content: space-between; 
+                    margin-bottom: 10px; 
+                    padding: 5px 0; 
+                }
+                .result-line.total { 
+                    border-top: 2px solid rgba(255,255,255,0.3); 
+                    margin-top: 15px; 
+                    padding-top: 15px; 
+                    font-weight: 700; 
+                    font-size: 1.2em; 
+                }
+                .days-grid { 
+                    display: grid; 
+                    grid-template-columns: repeat(7, 1fr); 
+                    gap: 8px; 
+                    margin-bottom: 20px; 
+                }
+                .day-btn { 
+                    padding: 10px 5px; 
+                    background: rgba(255,255,255,0.2); 
+                    border: 2px solid transparent; 
+                    border-radius: 8px; 
+                    color: white; 
+                    font-size: 12px; 
+                    font-weight: 600; 
+                    cursor: pointer; 
+                    text-align: center;
+                }
+                .day-btn.active { 
+                    background: #f97316; 
+                    border-color: #ea580c; 
+                }
+                .day-input { 
+                    width: 100%; 
+                    padding: 8px; 
+                    margin-top: 5px; 
+                    border: none; 
+                    border-radius: 5px; 
+                    font-size: 14px;
+                    background: rgba(255,255,255,0.9);
+                    color: #1e40af;
+                }
+                .day-controls { 
+                    margin-bottom: 20px; 
+                }
+                .day-item { 
+                    background: rgba(255,255,255,0.1); 
+                    padding: 15px; 
+                    margin-bottom: 10px; 
+                    border-radius: 10px; 
+                    border: 2px solid transparent;
+                }
+                .day-item.active { 
+                    border-color: #f97316; 
+                }
+                .day-header { 
+                    display: flex; 
+                    justify-content: space-between; 
+                    align-items: center; 
+                    margin-bottom: 10px; 
+                }
+                .day-name { 
+                    font-weight: 600; 
+                    font-size: 14px; 
+                }
+                .work-toggle { 
+                    background: #dc2626; 
+                    color: white; 
+                    border: none; 
+                    padding: 5px 10px; 
+                    border-radius: 5px; 
+                    font-size: 12px; 
+                    cursor: pointer;
+                }
+                .work-toggle.working { 
+                    background: #16a34a; 
+                }
+                .day-inputs { 
+                    display: grid; 
+                    grid-template-columns: 1fr 1fr 1fr; 
+                    gap: 10px; 
+                }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>PAY Assistance</h1>
+                <p class="subtitle">Australian Salary Calculator</p>
+                
+                <div class="form-group">
+                    <label>Hourly Rate (AUD)</label>
+                    <input type="number" id="hourlyRate" placeholder="25.00" step="0.01">
+                </div>
+
+                <div class="form-group">
+                    <label>Employment Type</label>
+                    <select id="employmentType">
+                        <option value="casual">Casual (+25% loading)</option>
+                        <option value="fulltime">Full-time</option>
+                        <option value="parttime">Part-time</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Daily Work Schedule</label>
+                    <div class="day-controls">
+                        <div class="day-item active" data-day="monday">
+                            <div class="day-header">
+                                <span class="day-name">Monday</span>
+                                <button class="work-toggle working" onclick="toggleWork(this)">Working</button>
+                            </div>
+                            <div class="day-inputs">
+                                <input type="number" class="day-input" placeholder="8.0" step="0.5" data-type="hours">
+                                <input type="number" class="day-input" placeholder="0.5" step="0.25" data-type="break">
+                                <input type="number" class="day-input" placeholder="0" step="1" data-type="allowance">
+                            </div>
+                        </div>
+                        
+                        <div class="day-item active" data-day="tuesday">
+                            <div class="day-header">
+                                <span class="day-name">Tuesday</span>
+                                <button class="work-toggle working" onclick="toggleWork(this)">Working</button>
+                            </div>
+                            <div class="day-inputs">
+                                <input type="number" class="day-input" placeholder="8.0" step="0.5" data-type="hours">
+                                <input type="number" class="day-input" placeholder="0.5" step="0.25" data-type="break">
+                                <input type="number" class="day-input" placeholder="0" step="1" data-type="allowance">
+                            </div>
+                        </div>
+                        
+                        <div class="day-item active" data-day="wednesday">
+                            <div class="day-header">
+                                <span class="day-name">Wednesday</span>
+                                <button class="work-toggle working" onclick="toggleWork(this)">Working</button>
+                            </div>
+                            <div class="day-inputs">
+                                <input type="number" class="day-input" placeholder="8.0" step="0.5" data-type="hours">
+                                <input type="number" class="day-input" placeholder="0.5" step="0.25" data-type="break">
+                                <input type="number" class="day-input" placeholder="0" step="1" data-type="allowance">
+                            </div>
+                        </div>
+                        
+                        <div class="day-item active" data-day="thursday">
+                            <div class="day-header">
+                                <span class="day-name">Thursday</span>
+                                <button class="work-toggle working" onclick="toggleWork(this)">Working</button>
+                            </div>
+                            <div class="day-inputs">
+                                <input type="number" class="day-input" placeholder="8.0" step="0.5" data-type="hours">
+                                <input type="number" class="day-input" placeholder="0.5" step="0.25" data-type="break">
+                                <input type="number" class="day-input" placeholder="0" step="1" data-type="allowance">
+                            </div>
+                        </div>
+                        
+                        <div class="day-item active" data-day="friday">
+                            <div class="day-header">
+                                <span class="day-name">Friday</span>
+                                <button class="work-toggle working" onclick="toggleWork(this)">Working</button>
+                            </div>
+                            <div class="day-inputs">
+                                <input type="number" class="day-input" placeholder="8.0" step="0.5" data-type="hours">
+                                <input type="number" class="day-input" placeholder="0.5" step="0.25" data-type="break">
+                                <input type="number" class="day-input" placeholder="0" step="1" data-type="allowance">
+                            </div>
+                        </div>
+                        
+                        <div class="day-item" data-day="saturday">
+                            <div class="day-header">
+                                <span class="day-name">Saturday</span>
+                                <button class="work-toggle" onclick="toggleWork(this)">Not Working</button>
+                            </div>
+                            <div class="day-inputs">
+                                <input type="number" class="day-input" placeholder="0" step="0.5" data-type="hours" disabled>
+                                <input type="number" class="day-input" placeholder="0" step="0.25" data-type="break" disabled>
+                                <input type="number" class="day-input" placeholder="0" step="1" data-type="allowance" disabled>
+                            </div>
+                        </div>
+                        
+                        <div class="day-item" data-day="sunday">
+                            <div class="day-header">
+                                <span class="day-name">Sunday</span>
+                                <button class="work-toggle" onclick="toggleWork(this)">Not Working</button>
+                            </div>
+                            <div class="day-inputs">
+                                <input type="number" class="day-input" placeholder="0" step="0.5" data-type="hours" disabled>
+                                <input type="number" class="day-input" placeholder="0" step="0.25" data-type="break" disabled>
+                                <input type="number" class="day-input" placeholder="0" step="1" data-type="allowance" disabled>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <button class="btn" onclick="calculate()">Calculate Weekly Pay</button>
+
+                <div id="result" class="result">
+                    <h3>Weekly Breakdown</h3>
+                    <div id="resultContent"></div>
+                </div>
+            </div>
+
+            <script>
+                function toggleWork(button) {
+                    const dayItem = button.closest('.day-item');
+                    const inputs = dayItem.querySelectorAll('.day-input');
+                    
+                    if (button.classList.contains('working')) {
+                        button.classList.remove('working');
+                        button.textContent = 'Not Working';
+                        dayItem.classList.remove('active');
+                        inputs.forEach(input => {
+                            input.disabled = true;
+                            input.value = '';
+                        });
+                    } else {
+                        button.classList.add('working');
+                        button.textContent = 'Working';
+                        dayItem.classList.add('active');
+                        inputs.forEach(input => {
+                            input.disabled = false;
+                        });
+                    }
+                }
+
+                function calculate() {
+                    const hourlyRate = parseFloat(document.getElementById('hourlyRate').value);
+                    const employmentType = document.getElementById('employmentType').value;
+
+                    if (!hourlyRate) {
+                        alert('Please enter hourly rate');
+                        return;
+                    }
+
+                    let totalHours = 0;
+                    let totalAllowances = 0;
+                    let workingDays = 0;
+
+                    document.querySelectorAll('.day-item.active').forEach(dayItem => {
+                        const hoursInput = dayItem.querySelector('[data-type="hours"]');
+                        const breakInput = dayItem.querySelector('[data-type="break"]');
+                        const allowanceInput = dayItem.querySelector('[data-type="allowance"]');
+                        
+                        const hours = parseFloat(hoursInput.value) || 0;
+                        const breakTime = parseFloat(breakInput.value) || 0;
+                        const allowance = parseFloat(allowanceInput.value) || 0;
+                        
+                        if (hours > 0) {
+                            totalHours += Math.max(0, hours - breakTime);
+                            totalAllowances += allowance;
+                            workingDays++;
+                        }
+                    });
+
+                    if (totalHours === 0) {
+                        alert('Please enter working hours for at least one day');
+                        return;
+                    }
+
+                    let grossPay = hourlyRate * totalHours + totalAllowances;
+
+                    if (employmentType === 'casual') {
+                        grossPay *= 1.25;
+                    }
+
+                    // Australian tax calculation
+                    const annualGross = grossPay * 52;
+                    let annualTax = 0;
+                    
+                    if (annualGross <= 18200) {
+                        annualTax = 0;
+                    } else if (annualGross <= 45000) {
+                        annualTax = (annualGross - 18200) * 0.19;
+                    } else if (annualGross <= 120000) {
+                        annualTax = 5092 + (annualGross - 45000) * 0.325;
+                    } else if (annualGross <= 180000) {
+                        annualTax = 29467 + (annualGross - 120000) * 0.37;
+                    } else {
+                        annualTax = 51667 + (annualGross - 180000) * 0.45;
+                    }
+
+                    const weeklyTax = annualTax / 52;
+                    const medicare = grossPay * 0.02;
+                    const netPay = grossPay - weeklyTax - medicare;
+
+                    document.getElementById('resultContent').innerHTML = `
+                        <div class="result-line"><span>Work Days:</span><span>${workingDays} days</span></div>
+                        <div class="result-line"><span>Total Hours:</span><span>${totalHours.toFixed(1)} hours</span></div>
+                        <div class="result-line"><span>Allowances:</span><span>$${totalAllowances.toFixed(2)}</span></div>
+                        <div class="result-line"><span>Gross Pay:</span><span>$${grossPay.toFixed(2)}</span></div>
+                        <div class="result-line"><span>Income Tax:</span><span>-$${weeklyTax.toFixed(2)}</span></div>
+                        <div class="result-line"><span>Medicare:</span><span>-$${medicare.toFixed(2)}</span></div>
+                        <div class="result-line total"><span>Take Home:</span><span>$${netPay.toFixed(2)}</span></div>
+                    `;
+                    
+                    document.getElementById('result').style.display = 'block';
+                }
+            </script>
+        </body>
+        </html>
+        EOF
+
+    - name: Install dependencies
+      run: |
+        cd simple-app
+        npm install
+
+    - name: Setup Capacitor
+      run: |
+        cd simple-app
+        cat > capacitor.config.json << 'EOF'
+        {
+          "appId": "com.payassistance.app",
+          "appName": "PAY Assistance",
+          "webDir": "www"
+        }
+        EOF
+        npx cap init --config=capacitor.config.json
+
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+
+    - name: Add Android platform
+      run: |
+        cd simple-app
+        npx cap add android
+
+    - name: Copy web assets
+      run: |
+        cd simple-app
+        npx cap copy android
+
+    - name: Build APK
+      run: |
+        cd simple-app/android
+        chmod +x ./gradlew
+        ./gradlew assembleDebug --no-daemon
+
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: pay-assistance-apk
+        path: simple-app/android/app/build/outputs/apk/debug/app-debug.apk
