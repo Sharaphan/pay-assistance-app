@@ -131,40 +131,6 @@ jobs:
                     font-weight: 700; 
                     font-size: 1.2em; 
                 }
-                .days-grid { 
-                    display: grid; 
-                    grid-template-columns: repeat(7, 1fr); 
-                    gap: 8px; 
-                    margin-bottom: 20px; 
-                }
-                .day-btn { 
-                    padding: 10px 5px; 
-                    background: rgba(255,255,255,0.2); 
-                    border: 2px solid transparent; 
-                    border-radius: 8px; 
-                    color: white; 
-                    font-size: 12px; 
-                    font-weight: 600; 
-                    cursor: pointer; 
-                    text-align: center;
-                }
-                .day-btn.active { 
-                    background: #f97316; 
-                    border-color: #ea580c; 
-                }
-                .day-input { 
-                    width: 100%; 
-                    padding: 8px; 
-                    margin-top: 5px; 
-                    border: none; 
-                    border-radius: 5px; 
-                    font-size: 14px;
-                    background: rgba(255,255,255,0.9);
-                    color: #1e40af;
-                }
-                .day-controls { 
-                    margin-bottom: 20px; 
-                }
                 .day-item { 
                     background: rgba(255,255,255,0.1); 
                     padding: 15px; 
@@ -201,6 +167,15 @@ jobs:
                     display: grid; 
                     grid-template-columns: 1fr 1fr 1fr; 
                     gap: 10px; 
+                }
+                .day-input { 
+                    width: 100%; 
+                    padding: 8px; 
+                    border: none; 
+                    border-radius: 5px; 
+                    font-size: 14px;
+                    background: rgba(255,255,255,0.9);
+                    color: #1e40af;
                 }
             </style>
         </head>
